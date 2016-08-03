@@ -1,7 +1,6 @@
 "use strict";
 var riclib = (function(window, document, undefined) {
 	var RICLib = function() {};
-	var _config = {};
 
 	// Feature detection methods
 	function getDevicePixelRatio() {
@@ -26,9 +25,6 @@ var riclib = (function(window, document, undefined) {
     var id = tmp.pop();
     var urlParam = tmp.join('/');
 
-    console.log('id', id);
-    console.log('url', urlParam);
-
 		var queryParams = {
 			format: 'jpeg',
 			url: urlParam
@@ -51,10 +47,7 @@ var riclib = (function(window, document, undefined) {
 	// RIC private tasks end
 
 	// riclib interface start
-	RICLib.prototype.init = function(config) {
-		_config = config || {};
-		console.debug('riclib::init(), called with config', config);
-
+	RICLib.prototype.init = function() {
 		processAllImages();
 	};
 
@@ -66,5 +59,5 @@ var riclib = (function(window, document, undefined) {
 
 // initialize riclib and pass potential config
 document.addEventListener("DOMContentLoaded", function(event) {
-	riclib.init(window.RICConfig);
+	riclib.init();
 });
