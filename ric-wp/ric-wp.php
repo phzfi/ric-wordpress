@@ -17,7 +17,7 @@
  * Plugin URI:        https://github.com/phzfi/RIC
  * Description:       This is the Responsive Image Cache integration plugin for WordPress. It replaces WP media URL's with RIC URL's.
  * Version:           0.0.1
- * Author:            Nicholas Saarela
+ * Author:            PHZ
  * Author URI:        https://phz.fi/
  * License:           GPL-2.0+
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
@@ -202,14 +202,15 @@ if (is_admin()) {
 	$my_settings_page = new MySettingsPage();
 }
 
+function disable_srcset($sources) { return false; }
 
 function load_js_file()
 {
 	$jsdata = array(
 		'URI' =>  get_option('my_option_name')
 	);
-	wp_enqueue_script('client_js', plugins_url('/client.js',__FILE__));
-	wp_localize_script('client_js', 'php_vars' , $jsdata);
+	wp_enqueue_script('riclib', plugins_url('/riclib.js',__FILE__));
+	wp_localize_script('riclib', 'php_vars' , $jsdata);
 }
 
 function load_css_file()
@@ -219,6 +220,7 @@ function load_css_file()
 
 add_action('wp_head', 'load_js_file');
 add_action('wp_head', 'load_css_file');
+add_filter('wp_calculate_image_srcset', 'disable_srcset');
 run_ric_wp();
 
 ?>
