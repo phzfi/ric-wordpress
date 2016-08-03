@@ -213,13 +213,7 @@ function load_js_file()
 	wp_localize_script('riclib', 'php_vars' , $jsdata);
 }
 
-function load_css_file()
-{
-	wp_enqueue_style( 'client_css', plugins_url('/client.css',__FILE__));
-}
-
 add_action('wp_head', 'load_js_file');
-add_action('wp_head', 'load_css_file');
 add_filter('wp_calculate_image_srcset', 'disable_srcset');
 run_ric_wp();
 
