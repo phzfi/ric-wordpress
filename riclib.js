@@ -31,7 +31,7 @@ var riclib = (function(window, document, undefined) {
       width: img.parentElement.parentElement.clientWidth,
       mode: 'fit'
 		};
-		
+
 		img.src = php_vars.URI.url + id + '?' + getQueryString(queryParams);
 	};
 
@@ -41,7 +41,9 @@ var riclib = (function(window, document, undefined) {
 
 		var length = images.length;
 		for(var i = 0; i<length ; i++) {
-			handleSingleImage(images[i]);
+			if(! images[i].classList.contains( 'avatar' ) ) {
+        handleSingleImage(images[i]);
+      }
 		}
 	};
 	// RIC private tasks end
