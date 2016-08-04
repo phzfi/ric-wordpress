@@ -13,7 +13,7 @@ var riclib = (function(window, document, undefined) {
 		var first = true;
 
 		for(var key in obj) {
-			queryStr += (first ? '': '&') + encodeURIComponent(key) + '=' + encodeURIComponent(obj[key])
+			queryStr += (first ? '': '&') + encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]);
 			first = false;
 		}
 
@@ -27,11 +27,11 @@ var riclib = (function(window, document, undefined) {
 
 		var queryParams = {
 			format: 'jpeg',
-			url: urlParam
+			url: urlParam,
+      width: img.parentElement.parentElement.clientWidth,
+      mode: 'fit'
 		};
-
-		console.debug('riclib::handleSingleImage(), query params', queryParams, img);
-
+		
 		img.src = php_vars.URI.url + id + '?' + getQueryString(queryParams);
 	};
 
