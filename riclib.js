@@ -25,7 +25,13 @@ var riclib = (function(window, document, undefined) {
     var id = tmp.pop();
     var urlParam = tmp.join('/');
 
+		var urlFormat = id.split('.').pop();
+		if (urlFormat == "jpg") {
+			urlFormat = "jpeg";
+		}
+
 		var queryParams = {
+			format: urlFormat,
 			url: urlParam,
       width: img.parentElement.parentElement.clientWidth,
       mode: 'fit'
