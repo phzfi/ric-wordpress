@@ -26,7 +26,6 @@ var riclib = (function(window, document, undefined) {
     var urlParam = tmp.join('/');
 
 		var queryParams = {
-			format: 'jpeg',
 			url: urlParam,
       width: img.parentElement.parentElement.clientWidth,
       mode: 'fit'
