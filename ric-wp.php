@@ -1,36 +1,20 @@
 <?php
 
-/**
- * The plugin bootstrap file
- *
- * This file is read by WordPress to generate the plugin information in the plugin
- * admin area. This file also includes all of the dependencies used by the plugin,
- * registers the activation and deactivation functions, and defines a function
- * that starts the plugin.
- *
- * @link              https://phz.fi/
- * @since             0.0.0
- * @package           Ric_Wp
- *
- * @wordpress-plugin
- * Plugin Name:       RIC WordPress Plugin
- * Plugin URI:        https://github.com/phzfi/RIC
- * Description:       This is the Responsive Image Cache integration plugin for WordPress. It replaces WP media URL's with RIC URL's.
- * Version:           0.0.1
- * Author:            PHZ
- * Author URI:        https://phz.fi/
- * License:           GPL-2.0+
- * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
- * Text Domain:       ric-wp
- * Domain Path:       /languages
- */
+/*
+  Plugin Name: RIC - Responsive Image Cache
+  Plugin URI: https://github.com/phzfi/RIC
+  Description: This is a Responsive Image Cache for wordpress.
+  Version: 1.0
+  Author: PHZ
+  Author URI: https://phz.fi/
+  License: GPLv2+
+  Text Domain: wp-ric
+*/
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
 	die;
 }
-
-
 
 /**
  * The code that runs during plugin activation.
@@ -80,11 +64,7 @@ function run_ric_wp() {
  * the actual work
  */
 
-
-
-
-
-class MySettingsPage
+class Ric_Settings
 {
     /**
      * Holds the values to be used in the fields callbacks
@@ -110,7 +90,7 @@ class MySettingsPage
             'Settings Admin',
             'RIC Settings',
             'manage_options',
-            'my-setting-admin',
+            'ric-settings-admin',
             array( $this, 'create_admin_page' )
         );
     }
@@ -120,16 +100,15 @@ class MySettingsPage
      */
     public function create_admin_page()
     {
-        // Set class property
-        $this->options = get_option( 'my_option_name' );
+        $this->options = get_option( 'ric-setting-group' )
         ?>
         <div class="wrap">
             <h2>RIC Settings</h2>
             <form method="post" action="options.php">
             <?php
                 // This prints out all hidden setting fields
-                settings_fields( 'my_option_group' );
-                do_settings_sections( 'my-setting-admin' );
+                settings_fields( 'ric-setting-group' );
+                do_settings_sections( 'ric-settings-admin' );
                 submit_button();
             ?>
             </form>
@@ -143,38 +122,38 @@ class MySettingsPage
     public function page_init()
     {
         register_setting(
-            'my_option_group', // Option group
-            'my_option_name', // Option name
+            'ric-setting-group', // Option group
+            'ric-setting-group', // Option name
             array( $this, 'sanitize' ) // Sanitize
         );
 
         add_settings_section(
-            'setting_section_id', // ID
+            'ric_section', // ID
             'RIC server URL settings', // Title
             array( $this, 'print_section_info' ), // Callback
-            'my-setting-admin' // Page
+            'ric-settings-admin' // Page
         );
 
         add_settings_field(
             'url',
             'RIC Server URL',
             array(  $this, 'url_callback' ),
-            'my-setting-admin',
-            'setting_section_id'
+            'ric-settings-admin',
+            'ric_section'
         );
+
+
     }
 
     /**
-     * Sanitize each setting field as needed
-     *
-     * @param array $input Contains all settings fields as array keys
+     * @param $input
+     * @return array
      */
     public function sanitize( $input )
     {
         $new_input = array();
         if( isset( $input['url'] ) )
             $new_input['url'] = sanitize_text_field( $input['url'] );
-
         return $new_input;
     }
 
@@ -192,29 +171,64 @@ class MySettingsPage
     public function url_callback()
     {
       printf(
-        '<input type="text" id="url" name="my_option_name[url]" value="%s" />',
+        '<input type="text" id="url" name="ric-setting-group[url]" value="%s" />',
         isset( $this->options['url'] ) ? esc_attr( $this->options['url']) : ''
       );
     }
 }
 
 if (is_admin()) {
-	$my_settings_page = new MySettingsPage();
+	$settings = new Ric_Settings();
 }
 
 function disable_srcset($sources) { return false; }
 
 function load_js_file()
 {
-	$jsdata = array(
-		'URI' =>  get_option('my_option_name')
-	);
-	wp_enqueue_script('riclib', plugins_url('/riclib.js',__FILE__));
-	wp_localize_script('riclib', 'php_vars' , $jsdata);
+    wp_enqueue_script('jquery');
+    wp_enqueue_script('screen-check', plugins_url('/screen-check.js', __FILE__));
 }
 
 add_action('wp_head', 'load_js_file');
 add_filter('wp_calculate_image_srcset', 'disable_srcset');
+
+
+add_filter('the_content', 'add_ric_image_src', 15);  // hook into filter and use priority 15 to make sure it is run after the srcset and sizes attributes have been added.
+
+
+function add_ric_image_src($the_content) {
+    if(!empty($the_content)) {
+        //Disable DOM error reporting
+        libxml_use_internal_errors(true);
+
+        $ric_options = get_option( 'ric-setting-group' );
+        $ric_url = $ric_options['url'];
+        $post = new DOMDocument();
+
+        $post->loadHTML($the_content);
+
+        $imgs = $post->getElementsByTagName('img');
+
+        // Iterate each img tag
+        foreach( $imgs as $img ) {
+
+            $src = $img->getAttribute('src');
+            $filename = basename($src);
+
+            //TODO: Get width and height parameters form javascript.
+            $new_src = $ric_url . '/' . $filename;
+
+            // Only change the image url if it exist on remote server
+            if (@getimagesize($new_src)) {
+                $img->setAttribute('src', $new_src);
+            }
+        };
+
+        return $post->saveHTML();
+    }
+
+}
+
 run_ric_wp();
 
 ?>
