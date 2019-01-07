@@ -181,53 +181,59 @@ if (is_admin()) {
 	$settings = new Ric_Settings();
 }
 
-function disable_srcset($sources) { return false; }
-
 function load_js_file()
 {
-    wp_enqueue_script('jquery');
-    wp_enqueue_script('screen-check', plugins_url('/screen-check.js', __FILE__));
+    wp_enqueue_script('image-loader', plugins_url('/image-loader.js', __FILE__));
+}
+
+function add_ric_image_src($page_content) {
+    if(empty($page_content)) {
+        return $page_content;
+    }
+    //Disable DOM error reporting
+    libxml_use_internal_errors(true);
+
+    $ric_options = get_option('ric-setting-group');
+    $ric_url = $ric_options['url'];
+    $post = new DOMDocument();
+
+    $post->loadHTML($page_content);
+
+    $images = $post->getElementsByTagName('img');
+
+    // Iterate each img tag
+    foreach ($images as $image) {
+        $src = $image->getAttribute('src');
+        $image->removeAttribute('src');
+
+        $width = $image->getAttribute('width');
+        $image->removeAttribute('width');
+
+        $height = $image->getAttribute('height');
+        $image->removeAttribute('height');
+
+        $filename = basename($src);
+
+        $new_src = $ric_url . '/' . $filename;
+
+        // Only change the image url if it exist on remote server
+        if (@getimagesize($new_src)) {
+            $image->setAttribute('data-src', $new_src);
+            if ($width !== "") {
+                $image->setAttribute('data-width', $width);
+            }
+            if ($height !== "") {
+                $image->setAttribute('data-height', $height);
+            }
+        }
+    };
+
+    return $post->saveHTML();
 }
 
 add_action('wp_head', 'load_js_file');
 add_filter('wp_calculate_image_srcset', 'disable_srcset');
-
-
 add_filter('the_content', 'add_ric_image_src', 15);  // hook into filter and use priority 15 to make sure it is run after the srcset and sizes attributes have been added.
-
-
-function add_ric_image_src($the_content) {
-    if(!empty($the_content)) {
-        //Disable DOM error reporting
-        libxml_use_internal_errors(true);
-
-        $ric_options = get_option( 'ric-setting-group' );
-        $ric_url = $ric_options['url'];
-        $post = new DOMDocument();
-
-        $post->loadHTML($the_content);
-
-        $imgs = $post->getElementsByTagName('img');
-
-        // Iterate each img tag
-        foreach( $imgs as $img ) {
-
-            $src = $img->getAttribute('src');
-            $filename = basename($src);
-
-            //TODO: Get width and height parameters form javascript.
-            $new_src = $ric_url . '/' . $filename;
-
-            // Only change the image url if it exist on remote server
-            if (@getimagesize($new_src)) {
-                $img->setAttribute('src', $new_src);
-            }
-        };
-
-        return $post->saveHTML();
-    }
-
-}
 
 run_ric_wp();
 
