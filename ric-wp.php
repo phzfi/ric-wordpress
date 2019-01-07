@@ -204,25 +204,25 @@ function add_ric_image_src($page_content) {
     // Iterate each img tag
     foreach ($images as $image) {
         $src = $image->getAttribute('src');
-        $image->removeAttribute('src');
 
         $width = $image->getAttribute('width');
-        $image->removeAttribute('width');
-
         $height = $image->getAttribute('height');
-        $image->removeAttribute('height');
 
-        $filename = basename($src);
-
-        $new_src = $ric_url . '/' . $filename;
+        $filename = $src;
+        $new_src = $ric_url . '/' . base64_encode($filename);
+        error_log($new_src);
 
         // Only change the image url if it exist on remote server
+        $response = wp_remote_get($new_src); //HACK
         if (@getimagesize($new_src)) {
+            $image->removeAttribute('src');
             $image->setAttribute('data-src', $new_src);
             if ($width !== "") {
+                $image->removeAttribute('width');
                 $image->setAttribute('data-width', $width);
             }
             if ($height !== "") {
+                $image->removeAttribute('height');
                 $image->setAttribute('data-height', $height);
             }
         }
@@ -232,7 +232,7 @@ function add_ric_image_src($page_content) {
 }
 
 add_action('wp_head', 'load_js_file');
-add_filter('wp_calculate_image_srcset', 'disable_srcset');
+//add_filter('wp_calculate_image_srcset', 'disable_srcset');
 add_filter('the_content', 'add_ric_image_src', 15);  // hook into filter and use priority 15 to make sure it is run after the srcset and sizes attributes have been added.
 
 run_ric_wp();

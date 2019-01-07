@@ -11,9 +11,13 @@ function getQueryString(obj) {
 };
 
 function handleSingleImage(img) {
+  let queryObject = {};
+  let src = img.getAttribute("data-src")
   let width = img.getAttribute("data-width");
 
-  let queryObject = {};
+  if(src !== "") {
+    return;
+  }
 
   if (width === null || width > screen.width) {
     queryObject.width = screen.width;
