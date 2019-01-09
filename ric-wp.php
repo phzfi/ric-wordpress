@@ -188,19 +188,52 @@ function load_js_file()
     wp_enqueue_script('image-loader', plugins_url('/image-loader.js', __FILE__));
 }
 
+function ric_src_the_post($post_object) {
+    //Disable DOM error reporting
+    libxml_use_internal_errors(true);
+    $post = new DOMDocument();
+    $post->loadHTML($post_object->post_content);
+    $images = $post->getElementsByTagName('img');
+
+    // Iterate each img tag
+    foreach ($images as $image) {
+        $src = $image->getAttribute('src');
+        if(ric_already_encoded($src)) {
+            continue;
+        }
+
+        $width = $image->getAttribute('width');
+        $height = $image->getAttribute('height');
+        $new_src = ric_encode_url($src);
+
+        if (@getimagesize($new_src)) {
+
+            $image->removeAttribute('src');
+            $image->setAttribute('data-src', $new_src);
+            if ($width !== "") {
+                $image->removeAttribute('width');
+                $image->setAttribute('data-width', $width);
+            }
+            if ($height !== "") {
+                $image->removeAttribute('height');
+                $image->setAttribute('data-height', $height);
+            }
+        }
+    };
+
+    $post_object->post_content = $post->saveHTML();
+    return $post_object;
+}
+
 function ric_src_the_content($page_content) {
     if(empty($page_content)) {
         return $page_content;
     }
+
     //Disable DOM error reporting
     libxml_use_internal_errors(true);
-
-    $ric_options = get_option('ric-setting-group');
-    $ric_url = $ric_options['url'];
     $post = new DOMDocument();
-
     $post->loadHTML($page_content);
-
     $images = $post->getElementsByTagName('img');
 
     // Iterate each img tag
@@ -279,8 +312,9 @@ add_action('wp_head', 'load_js_file');
 add_filter('wp_calculate_image_srcset', 'disable_srcset');
 
 add_filter('the_content', 'ric_src_the_content', 15);  // hook into filter and use priority 15 to make sure it is run after the srcset and sizes attributes have been added.
-add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 10);
-add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 10);
+add_action('the_post', 'ric_src_the_post', 15);
+add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 15);
+add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 15);
 
 run_ric_wp();
 
