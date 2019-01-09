@@ -11,28 +11,28 @@ function getQueryString(obj) {
 };
 
 function handleSingleImage(img) {
-  let queryObject = {};
-  let src = img.getAttribute("data-src")
-  let width = img.getAttribute("data-width");
-
-  if(src !== "") {
+  let dataSrc = img.getAttribute("data-src")
+  if(!dataSrc) {
     return;
   }
 
-  if (width === null || width > screen.width) {
-    queryObject.width = screen.width;
+  let queryObject = {"mode": "fit"};
+  let width = img.getAttribute("data-width");
+
+  if (width === null || width > window.innerWidth) {
+    queryObject.width = window.innerWidth;
   } else {
     queryObject.width = width;
   }
 
-  img.src = img.getAttribute("data-src") + getQueryString(queryObject);
+  img.src = dataSrc + getQueryString(queryObject);
 };
 
 function processAllImages() {
   // images is 'HTMLCollection'
   var images = document.getElementsByTagName('img');
-
   var length = images.length;
+
   for(var i = 0; i<length ; i++) {
     handleSingleImage(images[i]);
   }

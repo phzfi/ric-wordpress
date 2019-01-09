@@ -181,12 +181,14 @@ if (is_admin()) {
 	$settings = new Ric_Settings();
 }
 
+function disable_srcset($sources) { return false; }
+
 function load_js_file()
 {
     wp_enqueue_script('image-loader', plugins_url('/image-loader.js', __FILE__));
 }
 
-function add_ric_image_src($page_content) {
+function ric_src_the_content($page_content) {
     if(empty($page_content)) {
         return $page_content;
     }
@@ -204,17 +206,16 @@ function add_ric_image_src($page_content) {
     // Iterate each img tag
     foreach ($images as $image) {
         $src = $image->getAttribute('src');
+        if(ric_already_encoded($src)) {
+            continue;
+        }
 
         $width = $image->getAttribute('width');
         $height = $image->getAttribute('height');
+        $new_src = ric_encode_url($src);
 
-        $filename = $src;
-        $new_src = $ric_url . '/' . base64_encode($filename);
-        error_log($new_src);
-
-        // Only change the image url if it exist on remote server
-        $response = wp_remote_get($new_src); //HACK
         if (@getimagesize($new_src)) {
+
             $image->removeAttribute('src');
             $image->setAttribute('data-src', $new_src);
             if ($width !== "") {
@@ -231,9 +232,55 @@ function add_ric_image_src($page_content) {
     return $post->saveHTML();
 }
 
+function ric_already_encoded($src) {
+    $ric_options = get_option('ric-setting-group');
+    $ric_url = $ric_options['url'];
+
+    return (strpos($src, $ric_url) === 0);
+}
+
+function ric_encode_url($url) {
+    $ric_options = get_option('ric-setting-group');
+    $ric_url = $ric_options['url'];
+
+    return $ric_url . '/' . base64_encode($url);
+}
+
+function ric_wp_get_attachment_url($src) {
+    error_log("wp_get_attachment_url: ". $src);
+    if(ric_already_encoded($src)) {
+        return $src;
+    }
+
+    $new_src = ric_encode_url($src);
+    if (@getimagesize($new_src)) {
+        $src = $new_src;
+    }
+
+    return $src;
+}
+
+function ric_wp_get_attachment_image_src($parameters) {
+    list($src) = $parameters;
+    error_log("wp_get_attachment_image_src: ". $src);
+    if(ric_already_encoded($src)) {
+        return $parameters;
+    }
+
+    $new_src = ric_encode_url($src);
+    if (@getimagesize($new_src)) {
+        $parameters[0] = $new_src;
+    }
+
+    return $parameters;
+}
+
 add_action('wp_head', 'load_js_file');
-//add_filter('wp_calculate_image_srcset', 'disable_srcset');
-add_filter('the_content', 'add_ric_image_src', 15);  // hook into filter and use priority 15 to make sure it is run after the srcset and sizes attributes have been added.
+add_filter('wp_calculate_image_srcset', 'disable_srcset');
+
+add_filter('the_content', 'ric_src_the_content', 15);  // hook into filter and use priority 15 to make sure it is run after the srcset and sizes attributes have been added.
+add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 10);
+add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 10);
 
 run_ric_wp();
 
