@@ -189,6 +189,9 @@ function load_js_file()
 }
 
 function ric_src_the_post($post_object) {
+    if(empty($post_object->post_content)) {
+        return $post_object;
+    }
     //Disable DOM error reporting
     libxml_use_internal_errors(true);
     $post = new DOMDocument();
@@ -273,6 +276,7 @@ function ric_already_encoded($src) {
 }
 
 function ric_encode_url($url) {
+    //TODO: Remove url params?
     $ric_options = get_option('ric-setting-group');
     $ric_url = $ric_options['url'];
 
@@ -308,14 +312,28 @@ function ric_wp_get_attachment_image_src($parameters) {
     return $parameters;
 }
 
-add_action('wp_head', 'load_js_file');
-add_filter('wp_calculate_image_srcset', 'disable_srcset');
+function ric_delete_attachment($id) {
+    $post_type = get_post_mime_type($id);
+    if(strpos($post_type, "image/") === false) {
+        return;
+    }
+    /* TODO: We must send something to the server to authenticate the request.
+             Otherwise RIC is vulnerable to DoSsing */
+   error_log("ATTACHEMENT DELETED!");
+   return;
+}
 
-add_filter('the_content', 'ric_src_the_content', 15);  // hook into filter and use priority 15 to make sure it is run after the srcset and sizes attributes have been added.
-add_action('the_post', 'ric_src_the_post', 15);
-add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 15);
-add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 15);
+if(!!is_admin() === false) {
+    add_action('wp_head', 'load_js_file');
+    add_filter('wp_calculate_image_srcset', 'disable_srcset');
 
+    add_filter('the_content', 'ric_src_the_content', 15);  // hook into filter and use priority 15 to make sure it is run after the srcset and sizes attributes have been added.
+    add_action('the_post', 'ric_src_the_post', 15);
+    add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 15);
+    add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 15);
+} else {
+    add_filter('delete_attachment', 'ric_delete_attachment', 15);
+}
 run_ric_wp();
 
 ?>
