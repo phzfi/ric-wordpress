@@ -284,7 +284,8 @@ function ric_encode_url($url) {
 }
 
 function ric_wp_get_attachment_url($src) {
-    error_log("wp_get_attachment_url: ". $src);
+    //TODO: Check if dimensions are usable from here
+//    $attachmentMeta = wp_get_attachment_metadata($id);
     if(ric_already_encoded($src)) {
         return $src;
     }
@@ -293,13 +294,14 @@ function ric_wp_get_attachment_url($src) {
     if (@getimagesize($new_src)) {
         $src = $new_src;
     }
-
     return $src;
 }
 
 function ric_wp_get_attachment_image_src($parameters) {
+    //TODO: Check if dimensions are usable from here
+//    $attachmentMeta = wp_get_attachment_metadata($id);
+
     list($src) = $parameters;
-    error_log("wp_get_attachment_image_src: ". $src);
     if(ric_already_encoded($src)) {
         return $parameters;
     }
@@ -313,15 +315,64 @@ function ric_wp_get_attachment_image_src($parameters) {
 }
 
 function ric_delete_attachment($id) {
+
     $post_type = get_post_mime_type($id);
     if(strpos($post_type, "image/") === false) {
         return;
     }
     /* TODO: We must send something to the server to authenticate the request.
              Otherwise RIC is vulnerable to DoSsing */
-   error_log("ATTACHEMENT DELETED!");
-   return;
+
+
+    $url =  wp_get_attachment_url( $id );
+    if (!ric_already_encoded($url)) {
+        $url = ric_encode_url($url);
+    }
+
+    $options = [
+        'http' => [
+            'header'  => "Content-type: application/x-www-form-urlencoded",
+            'method'  => 'DELETE'
+        ]
+    ];
+    $context  = stream_context_create($options);
+    $result = @file_get_contents($url, false, $context);
+    //TODO: React to code?
+    $code = getHttpCode($http_response_header);
+
+    return $result;
 }
+
+function ric_get_header_image_tag($img) {
+    $document = new DOMDocument();
+    $document->loadHTML($img, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
+    $images = $document->getElementsByTagName('img');
+
+    // Iterate each img tag
+    foreach ($images as $image) {
+        $src = $image->getAttribute('src');
+        $new_src = ric_encode_url($src);
+        if (@getimagesize($new_src)) {
+            $src = $new_src;
+            $image->setAttribute('data-src', $src);
+            $image->removeAttribute('src');
+        }
+    }
+
+    return $document->saveHTML();
+}
+
+function getHttpCode($http_response_header)
+{
+    if(is_array($http_response_header))
+    {
+        $parts=explode(' ',$http_response_header[0]);
+        if(count($parts)>1) //HTTP/1.0 <code> <text>
+            return intval($parts[1]); //Get code
+    }
+    return 0;
+}
+
 
 if(!!is_admin() === false) {
     add_action('wp_head', 'load_js_file');
@@ -330,9 +381,11 @@ if(!!is_admin() === false) {
     add_filter('the_content', 'ric_src_the_content', 15);  // hook into filter and use priority 15 to make sure it is run after the srcset and sizes attributes have been added.
     add_action('the_post', 'ric_src_the_post', 15);
     add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 15);
-    add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 15);
+    add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 10);
+    add_filter('get_header_image_tag', 'ric_get_header_image_tag' , 15);
+//    add_filter('get_header_image', 'ric_get_header_image_src' , 15);
 } else {
-    add_filter('delete_attachment', 'ric_delete_attachment', 15);
+    add_filter('delete_attachment', 'ric_delete_attachment', 5);
 }
 run_ric_wp();
 
