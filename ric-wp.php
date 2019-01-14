@@ -205,22 +205,9 @@ function ric_src_the_post($post_object) {
             continue;
         }
 
-        $width = $image->getAttribute('width');
-        $height = $image->getAttribute('height');
         $new_src = ric_encode_url($src);
-
         if (@getimagesize($new_src)) {
-
-            $image->removeAttribute('src');
-            $image->setAttribute('data-src', $new_src);
-            if ($width !== "") {
-                $image->removeAttribute('width');
-                $image->setAttribute('data-width', $width);
-            }
-            if ($height !== "") {
-                $image->removeAttribute('height');
-                $image->setAttribute('data-height', $height);
-            }
+            $image->setAttribute('src', $new_src);
         }
     };
 
@@ -246,22 +233,9 @@ function ric_src_the_content($page_content) {
             continue;
         }
 
-        $width = $image->getAttribute('width');
-        $height = $image->getAttribute('height');
         $new_src = ric_encode_url($src);
-
         if (@getimagesize($new_src)) {
-
-            $image->removeAttribute('src');
-            $image->setAttribute('data-src', $new_src);
-            if ($width !== "") {
-                $image->removeAttribute('width');
-                $image->setAttribute('data-width', $width);
-            }
-            if ($height !== "") {
-                $image->removeAttribute('height');
-                $image->setAttribute('data-height', $height);
-            }
+            $image->setAttribute('src', $new_src);
         }
     };
 
@@ -276,6 +250,15 @@ function ric_already_encoded($src) {
 }
 
 function ric_encode_url($url) {
+    //TODO: Remove url params?
+    $ric_options = get_option('ric-setting-group');
+    $ric_url = $ric_options['url'];
+
+    $viewport = get_viewport_from_cookie();
+
+    return $ric_url . '/' . base64_encode($url) . "?width=". $viewport["width"];
+}
+function ric_encode_url_without_viewport($url) {
     //TODO: Remove url params?
     $ric_options = get_option('ric-setting-group');
     $ric_url = $ric_options['url'];
@@ -326,7 +309,7 @@ function ric_delete_attachment($id) {
 
     $url =  wp_get_attachment_url( $id );
     if (!ric_already_encoded($url)) {
-        $url = ric_encode_url($url);
+        $url = ric_encode_url_without_viewport($url);
     }
 
     $options = [
@@ -353,9 +336,7 @@ function ric_get_header_image_tag($img) {
         $src = $image->getAttribute('src');
         $new_src = ric_encode_url($src);
         if (@getimagesize($new_src)) {
-            $src = $new_src;
-            $image->setAttribute('data-src', $src);
-            $image->removeAttribute('src');
+            $image->setAttribute('src', $new_src);
         }
     }
 
@@ -373,6 +354,39 @@ function getHttpCode($http_response_header)
     return 0;
 }
 
+function get_viewport_from_cookie() {
+    try {
+        $viewport = explode("x", $_COOKIE["RIC_VIEWPORT"], 2);
+        if (count($viewport) !== 2) {
+            throw new Exception("Bad cookie format for RIC_VIEWPORT");
+        }
+        $width = intval($viewport[0]);
+        $height = intval($viewport[1]);
+        if($width === 0 || $height === 0) {
+            throw new Exception("Bad width or height for RIC_VIEWPORT");
+        }
+    } catch(Exception $e) {
+        $width = 1920;
+        $height = 1080;
+    }
+    return ["width" => $width, "height" => $height];
+}
+
+function ric_detect_viewport()
+{
+
+    error_log('DETECT VIEWPORT ');
+
+//    throw new Exception('LAALAa');
+    //XXX: No cookies (disable in browser) == infinite reload loop!
+    if (empty($_COOKIE["RIC_VIEWPORT"])) {
+        // If JS and cookies are enable, each page load will update the viewport
+        setcookie("RIC_VIEWPORT", "default", 0, "/");
+        echo file_get_contents(dirname(__FILE__).'/viewport-detector.html');
+        exit;
+    }
+}
+
 
 if(!!is_admin() === false) {
     add_action('wp_head', 'load_js_file');
@@ -383,8 +397,11 @@ if(!!is_admin() === false) {
     add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 15);
     add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 10);
     add_filter('get_header_image_tag', 'ric_get_header_image_tag' , 15);
+
+    add_filter('init', 'ric_detect_viewport', 15);
 //    add_filter('get_header_image', 'ric_get_header_image_src' , 15);
 } else {
+
     add_filter('delete_attachment', 'ric_delete_attachment', 5);
 }
 run_ric_wp();

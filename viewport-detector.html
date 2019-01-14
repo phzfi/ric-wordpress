@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <noscript>
+        <meta http-equiv="refresh" content="3">
+    </noscript>
+</head>
+<body>
+    <script type="text/javascript">
+        function setCookie(name,value,days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days*24*60*60*1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+        }
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        setCookie("RIC_VIEWPORT", width + "x" + height);
+        window.location.reload();
+
+    </script>
+</body>
+</html>
