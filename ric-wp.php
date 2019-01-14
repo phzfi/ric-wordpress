@@ -185,7 +185,7 @@ function disable_srcset($sources) { return false; }
 
 function load_js_file()
 {
-    wp_enqueue_script('image-loader', plugins_url('/image-loader.js', __FILE__));
+    wp_enqueue_script('screen-check', plugins_url('/screen-check.js', __FILE__));
 }
 
 function ric_src_the_post($post_object) {
@@ -372,12 +372,7 @@ function get_viewport_from_cookie() {
     return ["width" => $width, "height" => $height];
 }
 
-function ric_detect_viewport()
-{
-
-    error_log('DETECT VIEWPORT ');
-
-//    throw new Exception('LAALAa');
+function ric_detect_viewport() {
     //XXX: No cookies (disable in browser) == infinite reload loop!
     if (empty($_COOKIE["RIC_VIEWPORT"])) {
         // If JS and cookies are enable, each page load will update the viewport
