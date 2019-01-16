@@ -141,8 +141,6 @@ class Ric_Settings
             'ric-settings-admin',
             'ric_section'
         );
-
-
     }
 
     /**
@@ -181,6 +179,10 @@ if (is_admin()) {
 	$settings = new Ric_Settings();
 }
 
+/**
+ * @param mixed $sources
+ * @return bool
+ */
 function disable_srcset($sources) { return false; }
 
 function load_js_file()
@@ -188,42 +190,38 @@ function load_js_file()
     wp_enqueue_script('screen-check', plugins_url('/screen-check.js', __FILE__));
 }
 
+/**
+ * @param object $post_object
+ * @return string
+ */
 function ric_src_the_post($post_object) {
     if(empty($post_object->post_content)) {
         return $post_object;
     }
-    //Disable DOM error reporting
-    libxml_use_internal_errors(true);
-    $post = new DOMDocument();
-    $post->loadHTML($post_object->post_content);
-    $images = $post->getElementsByTagName('img');
-
-    // Iterate each img tag
-    foreach ($images as $image) {
-        $src = $image->getAttribute('src');
-        if(ric_already_encoded($src)) {
-            continue;
-        }
-
-        $new_src = ric_encode_url($src);
-        if (@getimagesize($new_src)) {
-            $image->setAttribute('src', $new_src);
-        }
-    };
-
-    $post_object->post_content = $post->saveHTML();
-    return $post_object;
+    return ric_replace_content_img_src($post_object->post_content);
 }
 
+/**
+ * @param string $page_content
+ * @return string
+ */
 function ric_src_the_content($page_content) {
     if(empty($page_content)) {
         return $page_content;
     }
+    return ric_replace_content_img_src($page_content);
+}
 
+/**
+ * @param string $content
+ * @return string
+ */
+function ric_replace_content_img_src($content) {
     //Disable DOM error reporting
     libxml_use_internal_errors(true);
     $post = new DOMDocument();
-    $post->loadHTML($page_content);
+
+    $post->loadHTML(utf8_decode($content));
     $images = $post->getElementsByTagName('img');
 
     // Iterate each img tag
@@ -238,10 +236,13 @@ function ric_src_the_content($page_content) {
             $image->setAttribute('src', $new_src);
         }
     };
-
-    return $post->saveHTML();
+    return utf8_encode($post->saveHTML());
 }
 
+/**
+ * @param string $src
+ * @return boolean
+ */
 function ric_already_encoded($src) {
     $ric_options = get_option('ric-setting-group');
     $ric_url = $ric_options['url'];
@@ -249,6 +250,10 @@ function ric_already_encoded($src) {
     return (strpos($src, $ric_url) === 0);
 }
 
+/**
+ * @param string $url
+ * @return string
+ */
 function ric_encode_url($url) {
     //TODO: Remove url params?
     $ric_options = get_option('ric-setting-group');
@@ -258,6 +263,11 @@ function ric_encode_url($url) {
 
     return $ric_url . '/' . base64_encode($url) . "?width=". $viewport["width"];
 }
+
+/**
+ * @param string $url
+ * @return string
+ */
 function ric_encode_url_without_viewport($url) {
     //TODO: Remove url params?
     $ric_options = get_option('ric-setting-group');
@@ -266,6 +276,10 @@ function ric_encode_url_without_viewport($url) {
     return $ric_url . '/' . base64_encode($url);
 }
 
+/**
+ * @param string $src
+ * @return string
+ */
 function ric_wp_get_attachment_url($src) {
     //TODO: Check if dimensions are usable from here
 //    $attachmentMeta = wp_get_attachment_metadata($id);
@@ -280,6 +294,10 @@ function ric_wp_get_attachment_url($src) {
     return $src;
 }
 
+/**
+ * @param array $parameters
+ * @return array
+ */
 function ric_wp_get_attachment_image_src($parameters) {
     //TODO: Check if dimensions are usable from here
 //    $attachmentMeta = wp_get_attachment_metadata($id);
@@ -297,6 +315,10 @@ function ric_wp_get_attachment_image_src($parameters) {
     return $parameters;
 }
 
+/**
+ * @param integer $id
+ * @return false|string|void
+ */
 function ric_delete_attachment($id) {
 
     $post_type = get_post_mime_type($id);
@@ -326,6 +348,10 @@ function ric_delete_attachment($id) {
     return $result;
 }
 
+/**
+ * @param string $img
+ * @return string
+ */
 function ric_get_header_image_tag($img) {
     $document = new DOMDocument();
     $document->loadHTML($img, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
@@ -343,6 +369,10 @@ function ric_get_header_image_tag($img) {
     return $document->saveHTML();
 }
 
+/**
+ * @param array $http_response_header
+ * @return integer
+ */
 function getHttpCode($http_response_header)
 {
     if(is_array($http_response_header))
@@ -354,6 +384,9 @@ function getHttpCode($http_response_header)
     return 0;
 }
 
+/**
+ * @return array
+ */
 function get_viewport_from_cookie() {
     try {
         $viewport = explode("x", $_COOKIE["RIC_VIEWPORT"], 2);
