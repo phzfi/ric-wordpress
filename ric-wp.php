@@ -447,10 +447,17 @@ function finalOutput($content) {
         $matches = [];
         preg_match($regex, $style, $matches);
         if (!empty($matches[0])) {
-            $url = $matches[3];
-            $replacement = "$1".ric_encode_url($url)."$4";
-            $style = preg_replace($regex, $replacement, $style);
-            $div->setAttribute('style', $style);
+            $src = $matches[3];
+
+            if(ric_already_encoded($src)) {
+                continue;
+            }
+            $new_src = ric_encode_url($src);
+            if (ric_has_file($new_src)) {
+                $replacement = "$1" . ric_encode_url($src) . "$4";
+                $style = preg_replace($regex, $replacement, $style);
+                $div->setAttribute('style', $style);
+            }
         }
     }
 
