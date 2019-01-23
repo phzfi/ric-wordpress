@@ -16,6 +16,8 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
+
+
 /**
  * The code that runs during plugin activation.
  * This action is documented in includes/class-ric-wp-activator.php
@@ -261,7 +263,7 @@ function ric_encode_url($url) {
 
     $viewport = get_viewport_from_cookie();
 
-    return $ric_url . '/' . base64_encode($url) . "?width=". $viewport["width"];
+    return $ric_url . '/' . base64_encode($url) . "?width=". $viewport["width"] ."&format=png";
 }
 
 /**
@@ -278,6 +280,7 @@ function ric_encode_url_without_viewport($url) {
 
 /**
  * @param string $src
+ * @param string|null $size
  * @return string
  */
 function ric_wp_get_attachment_url($src) {
@@ -415,22 +418,88 @@ function ric_detect_viewport() {
     }
 }
 
+function finalOutput($content) {
 
-if(!!is_admin() === false) {
+    libxml_use_internal_errors(true);
+    $post = new DOMDocument();
+
+//    error_log($content);
+    $post->loadHTML($content);
+    $images = $post->getElementsByTagName('img');
+
+    // Iterate each img tag
+    foreach ($images as $image) {
+        $src = $image->getAttribute('src');
+        if(ric_already_encoded($src)) {
+            continue;
+        }
+
+        $new_src = ric_encode_url($src);
+        if (ric_has_file($new_src)) {
+            $image->setAttribute('src', $new_src);
+        }
+    };
+
+    $divs = $post->getElementsByTagName('div');
+    foreach ($divs as $div) {
+        $style = $div->getAttribute('style');
+        $regex = '/(background-image: ?url\((["|\']?))(.+?)(["|\']?\))/';
+        $matches = [];
+        preg_match($regex, $style, $matches);
+        if (!empty($matches[0])) {
+            $url = $matches[3];
+            $replacement = "$1".ric_encode_url($url)."$4";
+            $style = preg_replace($regex, $replacement, $style);
+            $div->setAttribute('style', $style);
+        }
+    }
+
+    return utf8_encode($post->saveHTML());
+
+}
+
+
+function ric_has_file($url) {
+    $options = [
+        'http' => [
+            'header'  => "Content-type: application/x-www-form-urlencoded",
+            'method'  => 'HEAD'
+        ]
+    ];
+    $context  = stream_context_create($options);
+    $result = @file_get_contents($url, false, $context);
+
+    $code = getHttpCode($http_response_header);
+
+    if ($code == 200) {
+        return true;
+    }
+
+    return false;
+}
+
+
+if(!is_admin()) {
+
+    add_filter('init', 'ric_detect_viewport', 15000000);
     add_action('wp_head', 'load_js_file');
     add_filter('wp_calculate_image_srcset', 'disable_srcset');
 
-    add_filter('the_content', 'ric_src_the_content', 15);  // hook into filter and use priority 15 to make sure it is run after the srcset and sizes attributes have been added.
-    add_action('the_post', 'ric_src_the_post', 15);
-    add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 15);
-    add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 10);
-    add_filter('get_header_image_tag', 'ric_get_header_image_tag' , 15);
+//    add_filter('the_content', 'ric_src_the_content', 15000000);  // hook into filter and use priority 15000000 to make sure it is run after the srcset and sizes attributes have been added.
+//    add_action('the_post', 'ric_src_the_post', 15000000);
+////
+//    add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 15000000);
+//    add_filter('get_header_image_tag', 'ric_get_header_image_tag' , 15000000);
 
-    add_filter('init', 'ric_detect_viewport', 15);
-//    add_filter('get_header_image', 'ric_get_header_image_src' , 15);
+//    Using this will break some images. This is lower level hook and outside it WP changes the image url.
+//    add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 15000000);
+
+    ob_start("finalOutput");
+
 } else {
 
     add_filter('delete_attachment', 'ric_delete_attachment', 5);
+//    ob_start();
 }
 run_ric_wp();
 
