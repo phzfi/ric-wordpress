@@ -16,8 +16,6 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-
-
 /**
  * The code that runs during plugin activation.
  * This action is documented in includes/class-ric-wp-activator.php
@@ -280,7 +278,6 @@ function ric_encode_url_without_viewport($url) {
 
 /**
  * @param string $src
- * @param string|null $size
  * @return string
  */
 function ric_wp_get_attachment_url($src) {
@@ -320,13 +317,13 @@ function ric_wp_get_attachment_image_src($parameters) {
 
 /**
  * @param integer $id
- * @return false|string|void
+ * @return false|string
  */
 function ric_delete_attachment($id) {
 
     $post_type = get_post_mime_type($id);
     if(strpos($post_type, "image/") === false) {
-        return;
+        return false;
     }
     /* TODO: We must send something to the server to authenticate the request.
              Otherwise RIC is vulnerable to DoSsing */
@@ -345,8 +342,6 @@ function ric_delete_attachment($id) {
     ];
     $context  = stream_context_create($options);
     $result = @file_get_contents($url, false, $context);
-    //TODO: React to code?
-    $code = getHttpCode($http_response_header);
 
     return $result;
 }
@@ -418,7 +413,11 @@ function ric_detect_viewport() {
     }
 }
 
-function finalOutput($content) {
+/**
+ * @param string $content
+ * @return string
+ */
+function ric_image_source_manipulator($content) {
 
     libxml_use_internal_errors(true);
     $post = new DOMDocument();
@@ -443,20 +442,32 @@ function finalOutput($content) {
     $divs = $post->getElementsByTagName('div');
     foreach ($divs as $div) {
         $style = $div->getAttribute('style');
-        $regex = '/(background-image: ?url\((["|\']?))(.+?)(["|\']?\))/';
-        $matches = [];
-        preg_match($regex, $style, $matches);
-        if (!empty($matches[0])) {
-            $src = $matches[3];
 
-            if(ric_already_encoded($src)) {
-                continue;
-            }
-            $new_src = ric_encode_url($src);
-            if (ric_has_file($new_src)) {
-                $replacement = "$1" . ric_encode_url($src) . "$4";
-                $style = preg_replace($regex, $replacement, $style);
-                $div->setAttribute('style', $style);
+        // Search for background-image with regexp
+        //
+        // background-image : match string
+        // \s*              : possible whitespace(s)
+        // url\(            : match string url(
+        // (["|']?)         : possible ' or "
+        // (.+?)            : the url
+        // (["|']?)         : possible ' or "
+        // \)               : match string )
+        $regex = '/(background-image:\s*url\((["|\']?))(.+?)(["|\']?)\)/';
+        $matches = [];
+        if (!empty($style)) {
+            preg_match($regex, $style, $matches);
+            if (!empty($matches[0])) {
+                $src = $matches[3];
+
+                if (ric_already_encoded($src)) {
+                    continue;
+                }
+                $new_src = ric_encode_url($src);
+                if (ric_has_file($new_src)) {
+                    $replacement = "$1" . ric_encode_url($src) . "$4";
+                    $style = preg_replace($regex, $replacement, $style);
+                    $div->setAttribute('style', $style);
+                }
             }
         }
     }
@@ -494,20 +505,17 @@ if(!is_admin()) {
 
 //    add_filter('the_content', 'ric_src_the_content', 15000000);  // hook into filter and use priority 15000000 to make sure it is run after the srcset and sizes attributes have been added.
 //    add_action('the_post', 'ric_src_the_post', 15000000);
-////
+
 //    add_filter('wp_get_attachment_image_src', 'ric_wp_get_attachment_image_src' , 15000000);
 //    add_filter('get_header_image_tag', 'ric_get_header_image_tag' , 15000000);
 
 //    Using this will break some images. This is lower level hook and outside it WP changes the image url.
 //    add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 15000000);
 
-    ob_start("finalOutput");
+    ob_start("ric_image_source_manipulator");
 
 } else {
 
     add_filter('delete_attachment', 'ric_delete_attachment', 5);
-//    ob_start();
 }
 run_ric_wp();
-
-?>
