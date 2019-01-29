@@ -422,14 +422,13 @@ function ric_image_source_manipulator($content) {
     libxml_use_internal_errors(true);
     $post = new DOMDocument();
 
-//    error_log($content);
     $post->loadHTML($content);
     $images = $post->getElementsByTagName('img');
 
     // Iterate each img tag
     foreach ($images as $image) {
         $src = $image->getAttribute('src');
-        if(ric_already_encoded($src)) {
+        if(empty($src) || ric_already_encoded($src)) {
             continue;
         }
 
@@ -459,7 +458,7 @@ function ric_image_source_manipulator($content) {
             if (!empty($matches[0])) {
                 $src = $matches[3];
 
-                if (ric_already_encoded($src)) {
+                if (empty($src) || $src === "''" || ric_already_encoded($src)) {
                     continue;
                 }
                 $new_src = ric_encode_url($src);
