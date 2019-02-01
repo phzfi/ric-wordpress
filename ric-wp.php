@@ -227,6 +227,9 @@ function ric_replace_content_img_src($content) {
     // Iterate each img tag
     foreach ($images as $image) {
         $src = $image->getAttribute('src');
+        if(strpos($src, 'data:') === 0) {
+            continue; //embedded data
+        }
         if(ric_already_encoded($src)) {
             continue;
         }
@@ -255,13 +258,29 @@ function ric_already_encoded($src) {
  * @return string
  */
 function ric_encode_url($url) {
+    if (ric_is_host_blacklisted($url)) {
+        return $url;
+    }
     //TODO: Remove url params?
     $ric_options = get_option('ric-setting-group');
     $ric_url = $ric_options['url'];
 
     $viewport = get_viewport_from_cookie();
 
-    return $ric_url . '/' . base64_encode($url) . "?width=". $viewport["width"] ."&format=png";
+    return $ric_url . '/' . base64_encode($url) . "?width=". $viewport["width"];
+}
+
+function ric_is_host_blacklisted($url) {
+
+    $blacklistedHosts = ["gravatar.com"];
+
+    foreach ($blacklistedHosts as $host) {
+        if(strpos($url, $host) !== false) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -371,7 +390,7 @@ function ric_get_header_image_tag($img) {
  * @param array $http_response_header
  * @return integer
  */
-function getHttpCode($http_response_header)
+function getHttpCode($http_response_header = null)
 {
     if(is_array($http_response_header))
     {
@@ -428,7 +447,7 @@ function ric_image_source_manipulator($content) {
     // Iterate each img tag
     foreach ($images as $image) {
         $src = $image->getAttribute('src');
-        if(empty($src) || ric_already_encoded($src)) {
+        if(!filter_var($src, FILTER_VALIDATE_URL) || ric_already_encoded($src)) {
             continue;
         }
 
@@ -436,7 +455,7 @@ function ric_image_source_manipulator($content) {
         if (ric_has_file($new_src)) {
             $image->setAttribute('src', $new_src);
         }
-    };
+    }
 
     $divs = $post->getElementsByTagName('div');
     foreach ($divs as $div) {
@@ -451,14 +470,13 @@ function ric_image_source_manipulator($content) {
         // (.+?)            : the url
         // (["|']?)         : possible ' or "
         // \)               : match string )
-        $regex = '/(background-image:\s*url\((["|\']?))(.+?)(["|\']?)\)/';
+        $regex = '/(background-image:\s*url\((["|\']?))(.+?)(["|\']?\))/';
         $matches = [];
         if (!empty($style)) {
             preg_match($regex, $style, $matches);
             if (!empty($matches[0])) {
                 $src = $matches[3];
-
-                if (empty($src) || $src === "''" || ric_already_encoded($src)) {
+                if (!filter_var($src, FILTER_VALIDATE_URL) || ric_already_encoded($src)) {
                     continue;
                 }
                 $new_src = ric_encode_url($src);
@@ -471,18 +489,14 @@ function ric_image_source_manipulator($content) {
         }
     }
 
-    return utf8_encode($post->saveHTML());
+    return $post->saveHTML();
 
 }
 
 
 function ric_has_file($url) {
-    $options = [
-        'http' => [
-            'header'  => "Content-type: application/x-www-form-urlencoded",
-            'method'  => 'HEAD'
-        ]
-    ];
+    return true;
+    $options = ['http' => ['method'  => 'HEAD']];
     $context  = stream_context_create($options);
     $result = @file_get_contents($url, false, $context);
 
@@ -495,12 +509,29 @@ function ric_has_file($url) {
     return false;
 }
 
+function ric_ok() {
+    $ric_options = get_option('ric-setting-group');
+    $ric_url = $ric_options['url'];
 
-if(!is_admin()) {
+//    $options = ['http' => ['method'  => 'GET']];
+//
+//    $context  = stream_context_create($options);
+    $result = @file_get_contents($ric_url . "/status");
 
-    add_filter('init', 'ric_detect_viewport', 15000000);
-    add_action('wp_head', 'load_js_file');
-    add_filter('wp_calculate_image_srcset', 'disable_srcset');
+    if ($result === "OK" && getHttpCode($http_response_header) == 200) {
+        return true;
+    }
+
+    return false;
+}
+
+if (ric_ok()) {
+    if (!is_admin()) {
+        list($width, $height) = $size = explode('x', $_COOKIE["RIC_VIEWPORT"]);
+        add_action('wp_head', 'load_js_file');
+        add_filter('init', 'ric_detect_viewport', 1);
+
+        add_filter('wp_calculate_image_srcset', 'disable_srcset');
 
 //    add_filter('the_content', 'ric_src_the_content', 15000000);  // hook into filter and use priority 15000000 to make sure it is run after the srcset and sizes attributes have been added.
 //    add_action('the_post', 'ric_src_the_post', 15000000);
@@ -511,10 +542,13 @@ if(!is_admin()) {
 //    Using this will break some images. This is lower level hook and outside it WP changes the image url.
 //    add_filter('wp_get_attachment_url', 'ric_wp_get_attachment_url' , 15000000);
 
-    ob_start("ric_image_source_manipulator");
+        ob_start("ric_image_source_manipulator");
 
-} else {
 
-    add_filter('delete_attachment', 'ric_delete_attachment', 5);
+    } else {
+
+        add_filter('delete_attachment', 'ric_delete_attachment', 5);
+    }
 }
+
 run_ric_wp();
