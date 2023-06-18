@@ -437,6 +437,9 @@ function ric_detect_viewport() {
  * @return string
  */
 function ric_image_source_manipulator($content) {
+    if (empty($content)) {
+        return "";
+    }
 
     libxml_use_internal_errors(true);
     $post = new DOMDocument();
@@ -447,7 +450,7 @@ function ric_image_source_manipulator($content) {
     // Iterate each img tag
     foreach ($images as $image) {
         $src = $image->getAttribute('src');
-        if(!filter_var($src, FILTER_VALIDATE_URL) || ric_already_encoded($src)) {
+        if (!filter_var($src, FILTER_VALIDATE_URL) || ric_already_encoded($src)) {
             continue;
         }
 
@@ -490,7 +493,6 @@ function ric_image_source_manipulator($content) {
     }
 
     return $post->saveHTML();
-
 }
 
 
