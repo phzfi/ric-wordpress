@@ -529,7 +529,7 @@ function ric_ok() {
 
 if (ric_ok()) {
     if (!is_admin()) {
-        $ric_viewport = array(1024, 768); //default viewport
+        $ric_viewport = "1024x768"; //default viewport
         if (isset($_COOKIE["RIC_VIEWPORT"])) {
             $ric_viewport = $_COOKIE["RIC_VIEWPORT"];
         }
