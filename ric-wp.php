@@ -527,7 +527,12 @@ function ric_ok() {
 
 if (ric_ok()) {
     if (!is_admin()) {
-        list($width, $height) = $size = explode('x', $_COOKIE["RIC_VIEWPORT"]);
+        $ric_viewport = array(1024, 768); //default viewport
+        if (isset($_COOKIE["RIC_VIEWPORT"])) {
+            $ric_viewport = $_COOKIE["RIC_VIEWPORT"]);
+        }
+        $size = explode('x', $ric_viewport;
+        list($width, $height) = $size;
         add_action('wp_head', 'load_js_file');
         add_filter('init', 'ric_detect_viewport', 1);
 
