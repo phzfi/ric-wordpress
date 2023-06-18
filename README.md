@@ -1,4 +1,4 @@
-# PHZ Full Stack Standard Documentation V1.0.4
+RIC Wordpress -plugin
 
 ## 1. Project Description
 
