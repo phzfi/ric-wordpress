@@ -6,12 +6,10 @@
     "minimum-stability": "stable",
     "authors": [
         {
-            "name": "PHZ Full Stack Oy",
-            "email": "(support)@phz.fi"
+            "name": "PHZ Full Stack Oy"
         },
         {
-            "name": "Pharazon AB",
-            "email": "(sales)@phz.fi"
+            "name": "Pharazon AB"
         }
     ],
     "require": {
