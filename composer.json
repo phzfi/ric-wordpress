@@ -1,0 +1,7 @@
+{
+    "name": "phz/ric-wordpress",
+    "description": "A Wordpress plugin for high-performance Responsive Image Cache (RIC)",
+    "require": {
+        "php": ">=5.5",
+    }
+}
