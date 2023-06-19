@@ -530,7 +530,7 @@ function ric_ok() {
 if (ric_ok()) {
     if (!is_admin()) {
         $ric_viewport = "1024x768"; //default viewport
-        if (isset($_COOKIE["RIC_VIEWPORT"])) {
+        if (isset($_COOKIE["RIC_VIEWPORT"]) && str_contains($_COOKIE["RIC_VIEWPORT"], 'x')) {
             $ric_viewport = $_COOKIE["RIC_VIEWPORT"];
         }
         $size = explode('x', $ric_viewport);
